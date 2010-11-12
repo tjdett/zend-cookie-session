@@ -1,0 +1,284 @@
+<?php
+/**
+ * This class provides a save handler for a pure cookie-based session. This was 
+ * first introduced in Ruby on Rails by Ryan Dingle, and has been adapted here
+ * for Zend. 
+ *
+ * See http://ryandaigle.com/articles/2007/2/21/what-s-new-in-edge-rails-cookie-based-sessions
+ * 
+ * CONFIGURATION
+ *
+ * The constructor accepts an array of key=>value based options. These options are:
+ * 
+ * 'cookie_prefix': This is a prefix for the cookie names. For example, if you set 
+ * the prefix to 'session_store_', all cookies will be named with numerical suffixes,
+ * like 'session_store_1', 'session_store2', etc. The default is 'session_store_'
+ * 
+ * 'encryption_salt': This is a salt passed when the save handler encrypts the cookie
+ * data. Set this to anything you wish. Be secure!
+ * 
+ * 'cookie_limit': This is a limit to the number of cookies the save handler is
+ * allowed to create. Each cookie is allowed a 4k data limit, after which a new 
+ * cookie is created. Be aware that all servers have limits to how large a request
+ * header can be. It's strongly recommended you allow no more than 1 cookie. Don't
+ * abuse the session. The default is 1.
+ * 
+ * 'cookie_expiry': How long (in minutes) before the cookie is set to expire. This
+ * is obviously renewed with every request. The default is 30 minutes.
+ * 
+ * LICENSE
+ * 
+ * The MIT License
+ * 
+ * Copyright (c) 2010 Brian J. Celenza <bcelenza@gmail.com>
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ * 
+ * 
+ * @author Brian J. Celenza <bcelenza@gmail.com>
+ * @category BJC
+ * @package BJC_Session
+ * @copyright Copyright (c) 2010 Brian J. Celenza <bcelenza@gmail.com>
+ * @license http://creativecommons.org/licenses/MIT/ The MIT License
+ *
+ */
+
+namespace BJC\Session\SaveHandler;
+ 
+class BJC_Session_SaveHandler_CookieJar implements Zend_Session_SaveHandler_Interface
+{
+	
+	/**
+     * Default options for this cookie jar
+     * 
+     * @var array
+     */
+    private $_options = array(
+        // prefix for all cookie names, will be suffixed with a number
+        'cookie_prefix'   => 'session_store_',
+        // salt to use when encrypting the session data
+        'encryption_salt' => '99111a6f10d3951b11eb68ecaf9b56fb',
+        // the number of cookies we're allowed to create for the session store
+        'cookie_limit'    => 1,
+        // cookie expiration in minutes
+        'cookie_expiry'   => 30
+    );
+	
+	/**
+	 * Container for un-encrypted, unserialized session data
+	 * 
+	 * @var string
+	 */
+	private $_cookieData = '';
+	
+	/**
+	 * Constructor accepts an array of options to override the defaults
+	 * 
+	 * @param array $options
+	 */
+	public function __construct(array $options = array())
+	{
+		foreach($options as $key => $value) {
+			$this->_options[$key] = $value;
+		}
+	}
+	
+    /**
+     * Open Session - retrieve resources
+     *
+     * @param string $save_path
+     * @param string $name
+     */
+    public function open($save_path, $name)
+    {
+    	$assembled_session_string = '';
+    	
+    	// get the cookies array from the request object
+    	$cookies = $this->_getRequest()->getCookie();
+    	// search the cookies array for "our" cookies
+    	for($i = 0; $i < $this->_options['cookie_limit']; $i++) {
+    		$cookieName = $this->_options['cookie_prefix'] . $i;
+    		
+    		// if the cookie doesnt exist, we're done searching
+    		if(!array_key_exists($cookieName, $cookies)) {
+    			break;
+    		}
+    		
+    		// append this cookie's value on the assembled string
+    		$assembled_session_string .= $cookies[$cookieName];
+    	}
+    	
+    	if(!empty($assembled_session_string)) {
+    		// decrypt the string
+	        $this->_cookieData = rtrim(
+	            mcrypt_decrypt(
+	                MCRYPT_RIJNDAEL_256, 
+	                md5($this->_options['encryption_salt']), 
+	                base64_decode($assembled_session_string), 
+	                MCRYPT_MODE_CBC, 
+	                md5(md5($this->_options['encryption_salt']))
+	            ), 
+	            "\0"
+	        );
+    	}
+    	
+    	return true;
+    }
+
+    /**
+     * Close Session - free resources
+     *
+     */
+    public function close()
+    {
+    	// nothing to do here
+    	return true;
+    }
+
+    /**
+     * Read session data
+     *
+     * @param string $id
+     */
+    public function read($id)
+    {
+    	return $this->_cookieData;
+    }
+
+    /**
+     * Write Session - commit data to resource
+     *
+     * @param string $id
+     * @param mixed $data
+     */
+    public function write($id, $data)
+    {                
+        // encrypt and encode data
+        $data = base64_encode(
+            mcrypt_encrypt(
+                MCRYPT_RIJNDAEL_256, 
+                md5($this->_options['encryption_salt']), 
+                $data, 
+                MCRYPT_MODE_CBC, 
+                md5(md5($this->_options['encryption_salt']))
+            )
+        );
+        $data = urlencode($data);
+        
+        // split data
+        $data_chunks = str_split($data, 4000);
+        $chunk_count = sizeof($data_chunks);
+        
+        // check to make sure we have not violated our max cookie count
+        if($chunk_count > $this->_options['cookie_limit']) {
+        	throw new Zend_Session_Exception(
+        	   'Cookie limit of ' . $this->_options['cookie_limit'] . ' violated in cookie session store.'
+            );
+        }
+        
+        // save split data in cookies
+        for($i = 0; $i < $chunk_count; $i++) {
+        	// create the new cookie
+        	$cookieString = sprintf(
+        	    '%s=%s; expires=%s; path=/; domain=%s;', 
+        	    $this->_options['cookie_prefix'] . $i, 
+        	    $data_chunks[$i],
+        	    $this->_getExpirationDate($this->_options['cookie_expiry']),
+        	    $_SERVER['SERVER_NAME']
+        	);
+        	$this->_getResponse()->setHeader('Set-Cookie', $cookieString);
+        }
+        
+        return true;
+    }
+
+    /**
+     * Destroy Session - remove data from resource for a given session id
+     *
+     * @param string $id
+     */
+    public function destroy($id)
+    {
+    	// set all cookies values to nothing
+    	$cookies = $this->_getRequest()->getCookie();
+    	for($i = 0; $i < $this->_options['cookie_limit']; $i++) {
+    		$cookieName = $this->_options['cookie_prefix'] . $i;
+            
+            // if the cookie doesnt exist, we're done searching
+            if(!array_key_exists($cookieName, $cookies)) {
+                break;
+            }
+            
+            // create the new cookie
+            $cookieString = sprintf(
+                '%s=%s; expires=%s; path=/; domain=%s;', 
+                $this->_options['cookie_prefix'] . $i, 
+                '',
+                $this->_getExpirationDate(),
+                $_SERVER['SERVER_NAME']
+            );
+            $this->_getResponse()->setHeader('Set-Cookie', $cookieString);
+    	}
+    	return true;
+    }
+
+    /**
+     * Garbage Collection - remove old session data older
+     * than $maxlifetime (in seconds)
+     *
+     * @param int $maxlifetime
+     */
+    public function gc($maxlifetime)
+    {
+    	// nothing to do here
+    	return true;
+    }
+    
+    /**
+     * Returns the current request object 
+     * 
+     * @return Zend_Controller_Request_Abstract
+     */
+    private function _getRequest()
+    {
+    	return Zend_Controller_Front::getInstance()->getRequest();
+    }
+    
+    /**
+     * Returns the current response object
+     * 
+     * @return Zend_Controller_Response_Abstract
+     */
+    private function _getResponse()
+    {
+    	return Zend_Controller_Front::getInstance()->getResponse();
+    }
+    
+    /**
+     * Returns a formatted expiration date based on number of minutes in the future
+     * 
+     * @param int $minutes
+     * @return string
+     */
+    private function _getExpirationDate($minutes = 0)
+    {
+    	$expiration_time = time() + ($minutes * 60);
+    	return date('D, d-M-Y H:i:s T', $expiration_time);
+    }
+}
