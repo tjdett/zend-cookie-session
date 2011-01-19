@@ -171,16 +171,18 @@ class BJC_Session_SaveHandler_CookieJar implements Zend_Session_SaveHandler_Inte
         }
         
         // save split data in cookies
-        for($i = 0; $i < $chunk_count; $i++) {
-        	// create the new cookie
-        	$cookieString = sprintf(
-        	    '%s=%s; expires=%s; path=/; domain=%s;', 
-        	    $this->_options['cookie_prefix'] . $i, 
-        	    $data_chunks[$i],
-        	    $this->_getExpirationDate($this->_options['cookie_expiry']),
-        	    $_SERVER['SERVER_NAME']
-        	);
-        	$this->_getResponse()->setHeader('Set-Cookie', $cookieString);
+        if($this->_getResponse()->canSendHeaders()) {
+            for($i = 0; $i < $chunk_count; $i++) {
+            	// create the new cookie
+            	$cookieString = sprintf(
+            	    '%s=%s; expires=%s; path=/; domain=%s;', 
+            	    $this->_options['cookie_prefix'] . $i, 
+            	    $data_chunks[$i],
+            	    $this->_getExpirationDate($this->_options['cookie_expiry']),
+            	    $_SERVER['SERVER_NAME']
+            	);
+            	$this->_getResponse()->setHeader('Set-Cookie', $cookieString);
+            }
         }
         
         return true;
@@ -195,24 +197,27 @@ class BJC_Session_SaveHandler_CookieJar implements Zend_Session_SaveHandler_Inte
     {
     	// set all cookies values to nothing
     	$cookies = $this->_getRequest()->getCookie();
-    	for($i = 0; $i < $this->_options['cookie_limit']; $i++) {
-    		$cookieName = $this->_options['cookie_prefix'] . $i;
-            
-            // if the cookie doesnt exist, we're done searching
-            if(!array_key_exists($cookieName, $cookies)) {
-                break;
-            }
-            
-            // create the new cookie
-            $cookieString = sprintf(
-                '%s=%s; expires=%s; path=/; domain=%s;', 
-                $this->_options['cookie_prefix'] . $i, 
-                '',
-                $this->_getExpirationDate(),
-                $_SERVER['SERVER_NAME']
-            );
-            $this->_getResponse()->setHeader('Set-Cookie', $cookieString);
+    	if($this->_getResponse()->canSendHeaders()) {
+    	    for($i = 0; $i < $this->_options['cookie_limit']; $i++) {
+        		$cookieName = $this->_options['cookie_prefix'] . $i;
+
+                // if the cookie doesnt exist, we're done searching
+                if(!array_key_exists($cookieName, $cookies)) {
+                    break;
+                }
+
+                // create the new cookie
+                $cookieString = sprintf(
+                    '%s=%s; expires=%s; path=/; domain=%s;', 
+                    $this->_options['cookie_prefix'] . $i, 
+                    '',
+                    $this->_getExpirationDate(),
+                    $_SERVER['SERVER_NAME']
+                );
+                $this->_getResponse()->setHeader('Set-Cookie', $cookieString);
+        	}
     	}
+    	
     	return true;
     }
 
