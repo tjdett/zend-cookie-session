@@ -166,23 +166,26 @@ class BJC_Session_SaveHandler_CookieJar implements Zend_Session_SaveHandler_Inte
         // check to make sure we have not violated our max cookie count
         if($chunk_count > $this->_options['cookie_limit']) {
         	throw new Zend_Session_Exception(
-        	   'Cookie limit of ' . $this->_options['cookie_limit'] . ' violated in cookie session store.'
+        	   'Cookie limit of ' . $this->_options['cookie_limit'] . ' exceeded in cookie session store.'
             );
         }
         
+        // verify that we can send headers
+        if(!$this->_getResponse()->canSendHeaders()) {
+            throw new Exception('Unable to write cookies to response.');
+        }
+        
         // save split data in cookies
-        if($this->_getResponse()->canSendHeaders()) {
-            for($i = 0; $i < $chunk_count; $i++) {
-            	// create the new cookie
-            	$cookieString = sprintf(
-            	    '%s=%s; expires=%s; path=/; domain=%s;', 
-            	    $this->_options['cookie_prefix'] . $i, 
-            	    $data_chunks[$i],
-            	    $this->_getExpirationDate($this->_options['cookie_expiry']),
-            	    $_SERVER['SERVER_NAME']
-            	);
-            	$this->_getResponse()->setHeader('Set-Cookie', $cookieString);
-            }
+        for($i = 0; $i < $chunk_count; $i++) {
+        	// create the new cookie
+        	$cookieString = sprintf(
+        	    '%s=%s; expires=%s; path=/; domain=%s;', 
+        	    $this->_options['cookie_prefix'] . $i, 
+        	    $data_chunks[$i],
+        	    $this->_getExpirationDate($this->_options['cookie_expiry']),
+        	    $_SERVER['SERVER_NAME']
+        	);
+        	$this->_getResponse()->setHeader('Set-Cookie', $cookieString);
         }
         
         return true;
@@ -195,27 +198,30 @@ class BJC_Session_SaveHandler_CookieJar implements Zend_Session_SaveHandler_Inte
      */
     public function destroy($id)
     {
+        // verify that we can send headers
+        if(!$this->_getResponse()->canSendHeaders()) {
+            throw new Exception('Unable to write cookies to response.');
+        }
+        
     	// set all cookies values to nothing
     	$cookies = $this->_getRequest()->getCookie();
-    	if($this->_getResponse()->canSendHeaders()) {
-    	    for($i = 0; $i < $this->_options['cookie_limit']; $i++) {
-        		$cookieName = $this->_options['cookie_prefix'] . $i;
+	    for($i = 0; $i < $this->_options['cookie_limit']; $i++) {
+    		$cookieName = $this->_options['cookie_prefix'] . $i;
 
-                // if the cookie doesnt exist, we're done searching
-                if(!array_key_exists($cookieName, $cookies)) {
-                    break;
-                }
+            // if the cookie doesnt exist, we're done searching
+            if(!array_key_exists($cookieName, $cookies)) {
+                break;
+            }
 
-                // create the new cookie
-                $cookieString = sprintf(
-                    '%s=%s; expires=%s; path=/; domain=%s;', 
-                    $this->_options['cookie_prefix'] . $i, 
-                    '',
-                    $this->_getExpirationDate(),
-                    $_SERVER['SERVER_NAME']
-                );
-                $this->_getResponse()->setHeader('Set-Cookie', $cookieString);
-        	}
+            // create the new cookie
+            $cookieString = sprintf(
+                '%s=%s; expires=%s; path=/; domain=%s;', 
+                $this->_options['cookie_prefix'] . $i, 
+                '',
+                $this->_getExpirationDate(),
+                $_SERVER['SERVER_NAME']
+            );
+            $this->_getResponse()->setHeader('Set-Cookie', $cookieString);
     	}
     	
     	return true;
