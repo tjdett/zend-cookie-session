@@ -6,7 +6,38 @@ See http://ryandaigle.com/articles/2007/2/21/what-s-new-in-edge-rails-cookie-bas
 
 ## Installation ##
 
-This file should be placed under the library folder of your Zend instance. Feel free to rename the default namespace to your own, just make sure you add it in a directory structure following the Zend Coding Standards (http://framework.zend.com/manual/en/coding-standard.html). 
+This CookieJar.php file should be placed under the library folder of your Zend instance. Feel free to rename the default namespace to your own, just make sure you add it in a directory structure following the Zend Coding Standards (http://framework.zend.com/manual/en/coding-standard.html). 
+
+If you do not want to rename the class, place it here:
+
+    library/
+        BJC/
+            Session/
+                SaveHandler/
+                    CookieJar.php
+
+Add the following line to your Bootstrap.php file inside the __initRequest method:
+
+    // set session savehandler to the cookie jar
+    Zend_Session::setSaveHandler(new BJC_Session_SaveHandler_CookieJar());
+    
+In addition to the save handler library,  you'll also want to add the CookieSession.php plugin to your front controller. This is a very simple file, but it will make sure you are starting and closing your session at the proper times. With this, you should not ever call Zend_Session::start() or Zend_Session:writeClose(). It will do that for you.
+
+The file should be placed here:
+
+    library/
+        BJC/
+            Controller/
+                Plugin/
+                    CookieSession.php
+
+Add the following line to your Bootstrap.php file inside the __initRequest method:
+    
+    // register the cookie session plugin to start and stop the session
+    // for each request
+    $this->bootstrap('FrontController');
+    $front = $this->getResource('FrontController');
+    $front->registerPlugin(new BJC_Controller_Plugin_CookieSession());
 
 ## Configuration ##
 

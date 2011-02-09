@@ -8,7 +8,7 @@
  * 
  * The MIT License
  * 
- * Copyright (c) 2010 Brian J. Celenza <bcelenza@gmail.com>
+ * Copyright (c) 2011 Brian J. Celenza <bcelenza@gmail.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,7 @@
  * @author Brian J. Celenza <bcelenza@gmail.com>
  * @category BJC
  * @package BJC_Session
- * @copyright Copyright (c) 2010 Brian J. Celenza <bcelenza@gmail.com>
+ * @copyright Copyright (c) 2011 Brian J. Celenza <bcelenza@gmail.com>
  * @license http://creativecommons.org/licenses/MIT/ The MIT License
  *
  */
@@ -260,7 +260,7 @@ class BJC_Session_SaveHandler_CookieJar implements Zend_Session_SaveHandler_Inte
     }
     
     /**
-     * Returns a formatted expiration date based on number of minutes in the future
+     * Returns an RFC850 formatted expiration date based on number of minutes in the future
      * 
      * @param int $minutes
      * @return string
@@ -268,6 +268,8 @@ class BJC_Session_SaveHandler_CookieJar implements Zend_Session_SaveHandler_Inte
     private function _getExpirationDate($minutes = 0)
     {
     	$expiration_time = time() + ($minutes * 60);
-    	return date('D, d-M-Y H:i:s T', $expiration_time);
+        $date_time = new DateTime(null, new DateTimeZone('GMT'));
+        $date_time->setTimestamp($expiration_time);
+        return $date_time->format(DateTime::COOKIE);
     }
 }
