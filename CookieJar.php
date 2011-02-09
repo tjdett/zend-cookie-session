@@ -36,9 +36,6 @@
  * @license http://creativecommons.org/licenses/MIT/ The MIT License
  *
  */
-
-namespace BJC\Session\SaveHandler;
- 
 class BJC_Session_SaveHandler_CookieJar implements Zend_Session_SaveHandler_Interface
 {
 	

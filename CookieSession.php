@@ -34,10 +34,7 @@
  * @copyright Copyright (c) 2011 Brian J. Celenza <bcelenza@gmail.com>
  * @license http://creativecommons.org/licenses/MIT/ The MIT License
  *
- */
- 
-namespace BJC\Controller\Plugin\CookieSession;
- 
+ */ 
 class BJC_Controller_Plugin_CookieSession extends Zend_Controller_Plugin_Abstract
 {
     public function preDispatch()
