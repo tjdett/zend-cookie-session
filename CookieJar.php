@@ -176,12 +176,14 @@ class BJC_Session_SaveHandler_CookieJar implements Zend_Session_SaveHandler_Inte
         for($i = 0; $i < $chunk_count; $i++) {
         	// create the new cookie
         	$cookieString = sprintf(
-        	    '%s=%s; expires=%s; path=/; domain=%s;', 
+        	    '%s=%s; expires=%s; path=/; domain=%s; httponly', 
         	    $this->_options['cookie_prefix'] . $i, 
         	    $data_chunks[$i],
         	    $this->_getExpirationDate($this->_options['cookie_expiry']),
         	    $_SERVER['SERVER_NAME']
         	);
+        	// add secure flag if HTTPS
+            if($_SERVER['HTTPS'] == "on") $cookieString .= "; secure";
         	$this->_getResponse()->setHeader('Set-Cookie', $cookieString);
         }
         
