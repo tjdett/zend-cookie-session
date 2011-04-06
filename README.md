@@ -51,6 +51,8 @@ The constructor accepts an array of key=>value based options. These options are:
 
 * 'cookie_expiry': How long (in minutes) before the cookie is set to expire. This is obviously renewed with every request. The default is 30 minutes.
 
+* 'enforce_expiry': If true, attaches the cookie expiry time to the session data before encryption. The server then enforces expiry itself so stolen cookies can't be perpetually reused.
+
 ## Feedback / Contribution ##
 
 Feedback and improvements are always welcome. Email bcelenza@gmail.com for feedback, or fork the git repository to contribute.

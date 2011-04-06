@@ -39,6 +39,8 @@
 class BJC_Session_SaveHandler_CookieJar implements Zend_Session_SaveHandler_Interface
 {
 	
+	const EXPIRY_TIME_DELIMITER = '###';
+	
 	/**
      * Default options for this cookie jar
      * 
@@ -113,6 +115,14 @@ class BJC_Session_SaveHandler_CookieJar implements Zend_Session_SaveHandler_Inte
 	        );
     	}
     	
+    	// If we have an expiry time header, strip it off
+    	if (strpos($this->_cookieData, self::EXPIRY_TIME_DELIMITER) === 0) {
+    		$this->_cookieData = $this->_removeExpiryTimePrefix(
+    			$this->_cookieData,
+    			$this->_options['enforce_expiry']
+    		);
+    	}
+    	
     	return true;
     }
 
@@ -143,7 +153,15 @@ class BJC_Session_SaveHandler_CookieJar implements Zend_Session_SaveHandler_Inte
      * @param mixed $data
      */
     public function write($id, $data)
-    {                
+    {
+    	// if necessary, append expiry time prefix inside encrypted data
+    	if ($this->_options['enforce_expiry']) {
+    		$data = $this->_addExpiryTimePrefix(
+    			$data, 
+    			$this->_options['cookie_expiry']
+    		);
+    	}
+    	
         // encrypt and encode data
         $data = base64_encode(
             mcrypt_encrypt(
@@ -270,5 +288,41 @@ class BJC_Session_SaveHandler_CookieJar implements Zend_Session_SaveHandler_Inte
         $date_time = new DateTime(null, new DateTimeZone('GMT'));
         $date_time->setTimestamp($expiration_time);
         return $date_time->format(DateTime::COOKIE);
+    }
+    
+    /**
+     * Add an expiry time prefix to the session data.
+     * 
+     * @param string $data
+     * @param int $minutes
+     * @return string
+     */
+    private function _addExpiryTimePrefix($data, $minutes) {
+        $expiration_time = time() + ($minutes * 60);
+        $data = implode(
+            self::EXPIRY_TIME_DELIMITER, 
+            array('',$expiration_time,$data)
+        );
+        return $data;
+    }
+    
+    /**
+     * Removes the expiry time prefix on session data. If $enforce is set to 
+     * true, then an empty string will returned if the expiry time is in the 
+     * past.
+     * 
+     * @param string $data
+     * @param boolean $enforce
+     * @return string
+     */
+    private function _removeExpiryTimePrefix($data, $enforce = FALSE) {
+        list($empty, $timestamp, $data) = explode(
+            self::EXPIRY_TIME_DELIMITER, 
+            $this->_cookieData, 
+            3
+        );
+        if ($enforce)
+            return (time() <= $timestamp) ? $data : '';
+        return $data;
     }
 }
