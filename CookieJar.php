@@ -180,7 +180,7 @@ class BJC_Session_SaveHandler_CookieJar implements Zend_Session_SaveHandler_Inte
         	    $this->_options['cookie_prefix'] . $i, 
         	    $data_chunks[$i],
         	    $this->_getExpirationDate($this->_options['cookie_expiry']),
-        	    $_SERVER['SERVER_NAME']
+        	    array_key_exists('HTTP_HOST',$_SERVER) ? $_SERVER['HTTP_HOST'] : $_SERVER['SERVER_NAME']
         	);
         	// add secure flag if HTTPS
             if($_SERVER['HTTPS'] == "on") $cookieString .= "; secure";
