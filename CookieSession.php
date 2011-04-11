@@ -37,13 +37,13 @@
  */ 
 class BJC_Controller_Plugin_CookieSession extends Zend_Controller_Plugin_Abstract
 {
-    public function preDispatch()
+    public function preDispatch(Zend_Controller_Request_Abstract $request)
     {
         // open the session
         Zend_Session::start();
     }
     
-    public function postDispatch()
+    public function postDispatch(Zend_Controller_Request_Abstract $request)
     {        
         // close the session
         Zend_Session::writeClose(true);
