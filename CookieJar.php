@@ -285,6 +285,10 @@ class BJC_Session_SaveHandler_CookieJar implements Zend_Session_SaveHandler_Inte
     private function _getExpirationDate($minutes = 0)
     {
     	$expiration_time = time() + ($minutes * 60);
+    	// Use ugly way if the good way isn't available
+    	if (version_compare(PHP_VERSION, '5.3.0', '<')) {
+    	    return gmstrftime("%A %d-%b-%y %T %Z", $expiration_time);
+    	}
         $date_time = new DateTime(null, new DateTimeZone('GMT'));
         $date_time->setTimestamp($expiration_time);
         return $date_time->format(DateTime::COOKIE);
